@@ -1,0 +1,5 @@
+import { Card, Empty, Table, Tag, Button, message } from 'antd';
+import { useEffect, useState } from 'react';
+import { apiFetch, putJson } from '../../../services/api';
+type AlertItem = { id: number; title: string; source: string; status: string; createdTime: string };
+export default function AlertsPage() { const [items,setItems]=useState<AlertItem[]>([]); const load=()=>void apiFetch<AlertItem[]>('/admin/ops/alerts').then(setItems).catch(()=>undefined); useEffect(load,[]); const handle=async(id:number)=>{try{await putJson(`/admin/ops/alerts/${id}/handle`);message.success('告警已处理');load();}catch(e){message.error(e instanceof Error?e.message:'处理失败');}}; return <Card className="admin-page-card" title="运维告警"><Table rowKey="id" dataSource={items} locale={{emptyText:<Empty description="暂无告警"/>}} columns={[{title:'告警标题',dataIndex:'title'},{title:'来源',dataIndex:'source'},{title:'状态',dataIndex:'status',render:(v)=><Tag color={v==='HANDLED'?'green':'orange'}>{v==='HANDLED'?'已处理':'未处理'}</Tag>},{title:'时间',dataIndex:'createdTime'},{title:'操作',render:(_,r)=>r.status!=='HANDLED'&&<Button type="link" onClick={()=>handle(r.id)}>标记处理</Button>}]}/></Card>; }

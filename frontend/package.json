@@ -1,0 +1,25 @@
+{
+  "private": true,
+  "author": "ha123g <2972515097@qq.com>",
+  "scripts": {
+    "dev": "umi dev",
+    "build": "umi build",
+    "postinstall": "umi setup",
+    "setup": "umi setup",
+    "start": "npm run dev"
+  },
+  "dependencies": {
+    "@umijs/max": "4.7.14",
+    "antd": "^5.27.4",
+    "@ant-design/icons": "^6.0.0",
+    "dayjs": "^1.11.13",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "umi": "4.7.14"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.33",
+    "@types/react-dom": "^18.0.11",
+    "typescript": "^5.0.3"
+  }
+}

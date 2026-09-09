@@ -1,6 +1,6 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '4.1.1'
+	id 'org.springframework.boot' version '3.5.16'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -18,17 +18,40 @@ repositories {
 	mavenCentral()
 }
 
+// Spring AI Alibaba 官方 BOM。版本集中管理，避免各模块单独漂移。
+dependencyManagement {
+	imports {
+		mavenBom 'org.springframework.ai:spring-ai-bom:1.1.2'
+		mavenBom 'com.alibaba.cloud.ai:spring-ai-alibaba-bom:1.1.2.2'
+		mavenBom 'com.alibaba.cloud.ai:spring-ai-alibaba-extensions-bom:1.1.2.2'
+	}
+}
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
-	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	// Spring Session 将 HttpSession 持久化到 Redis；版本由 Spring Boot 3.5.16 BOM 管理。
+	implementation 'org.springframework.session:spring-session-data-redis'
+	// Redisson：Agent 摘要记忆与分布式 Session 辅助访问统一使用 Redisson 客户端。
+	implementation 'org.redisson:redisson-spring-boot-starter:3.52.0'
+	// DashScope Chat/Embedding；API Key 通过环境变量注入，不写入配置文件。
+	implementation 'com.alibaba.cloud.ai:spring-ai-alibaba-starter-dashscope'
+	// Spring AI 1.0.0 的 Milvus Vector Store；Embedding 模型由配置留空后再选型。
+	implementation 'org.springframework.ai:spring-ai-starter-vector-store-milvus'
+
+	implementation 'io.milvus:milvus-sdk-java:3.0.5'
+	// 腾讯云 COS 官方 SDK；密钥由 application.properties 注入，禁止写入源码。
+	implementation 'com.qcloud:cos_api:5.6.273'
+
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'
@@ -36,4 +59,10 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// Office lock files are transient and may remain open while the project
+// documentation is being edited; they are not application resources.
+tasks.withType(ProcessResources).configureEach {
+	exclude '**/~$*'
 }

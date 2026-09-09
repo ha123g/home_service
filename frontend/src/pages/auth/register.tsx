@@ -1,0 +1,7 @@
+import { Button, Card, Form, Input, Typography, message } from 'antd';
+import { history, Link } from 'umi';
+import { register } from '../../services/auth/authService';
+export default function RegisterPage() {
+  const submit = async (values: { username: string; password: string; confirmPassword: string }) => { try { await register({ username: values.username, password: values.password }); message.success('注册成功，请登录'); history.push('/login'); } catch (error) { message.error(error instanceof Error ? error.message : '注册失败'); } };
+  return <div className="auth-page"><Card className="auth-card"><Typography.Title level={3}>注册</Typography.Title><Form layout="vertical" onFinish={submit}><Form.Item name="username" label="用户名" rules={[{ required: true, min: 3, message: '用户名至少 3 个字符' }]}><Input placeholder="请输入用户名" /></Form.Item><Form.Item name="password" label="密码" rules={[{ required: true, min: 6, message: '密码至少 6 个字符' }]}><Input.Password placeholder="请输入密码" /></Form.Item><Form.Item name="confirmPassword" label="确认密码" dependencies={['password']} rules={[{ required: true, message: '请再次输入密码' }, ({ getFieldValue }) => ({ validator(_, value) { return !value || getFieldValue('password') === value ? Promise.resolve() : Promise.reject(new Error('两次输入的密码不一致')); } })]}><Input.Password placeholder="请再次输入密码" /></Form.Item><Button type="primary" htmlType="submit" block>注册</Button></Form><div className="auth-link"><Link to="/login">返回登录</Link></div></Card></div>;
+}

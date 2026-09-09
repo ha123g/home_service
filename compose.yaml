@@ -1,10 +1,160 @@
-services:
-  mysql:
-    image: 'mysql:latest'
-    environment:
-      - 'MYSQL_DATABASE=mydatabase'
-      - 'MYSQL_PASSWORD=secret'
-      - 'MYSQL_ROOT_PASSWORD=verysecret'
-      - 'MYSQL_USER=myuser'
-    ports:
-      - '3306'
+  services:
+    mysql:
+      image: mysql:8.4
+      # Docker 容器异常退出后自动重启。unless-stopped：除非你手动停止，否则 Docker 会尝试自动重启
+      restart: unless-stopped
+      environment:
+        MYSQL_DATABASE: home_service
+        MYSQL_USER: user1
+        MYSQL_PASSWORD: hao123
+        MYSQL_ROOT_PASSWORD: hao123
+        TZ: UTC
+      # 宿主机端口：容器内部 MySQL 端口
+      ports:
+        - "3307:3306"
+      # 数据卷目录
+      volumes:
+        - mysql-data:/var/lib/mysql
+      # MySQL 启动参数
+      command:
+        - --character-set-server=utf8mb4
+        - --collation-server=utf8mb4_0900_ai_ci
+      # Docker 健康检查,Docker 会定期执行下面的命令，
+      healthcheck:
+        # mysqladmin ping \
+        #   -h localhost \
+        #   -u root \
+        #   -p$MYSQL_ROOT_PASSWORD
+        test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD"]
+        # 每 20 秒检查一次
+        interval: 20s
+        # 单次健康检查最多等待 5 秒
+        timeout: 5s
+        # 连续失败 5 次后，
+        # Docker 才认为这个容器的健康检查失败
+        retries: 5
+
+    redis:
+      image: redis:7.4-alpine
+      # Redis 容器异常退出时自动重启
+      restart: unless-stopped
+      ports:
+        - "6379:6379"
+      volumes:
+        - redis-data:/data
+
+      # Redis 启动参数
+      command:
+        # 启动 redis-server
+        - redis-server
+        # 开启 AOF
+        - --appendonly
+        - yes
+      healthcheck:
+        # 执行：
+        # redis-cli ping
+        test: ["CMD", "redis-cli", "ping"]
+        start_period: 30s
+        interval: 20s
+        timeout: 5s
+        retries: 5
+
+    # Milvus standalone 依赖 etcd（元数据）和 MinIO（对象存储）。
+    etcd:
+      image: quay.io/coreos/etcd:v3.5.25
+      restart: unless-stopped
+      environment:
+        # 按照revision数量压缩
+        ETCD_AUTO_COMPACTION_MODE: revision
+        # 保留1000个revision
+        ETCD_AUTO_COMPACTION_RETENTION: 1000
+        # 4GB
+        ETCD_QUOTA_BACKEND_BYTES: 4294967296
+        # 50000次事务生成Snapshot
+        ETCD_SNAPSHOT_COUNT: 50000
+      command: >-
+        etcd --advertise-client-urls=http://0.0.0.0:2379
+        --listen-client-urls=http://0.0.0.0:2379 --data-dir=/etcd
+      volumes:
+        - milvus-etcd:/etcd
+      healthcheck:
+        test: ["CMD", "etcdctl", "endpoint", "health"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
+
+    # MinIO是对象存储
+    minio:
+      image: minio/minio:RELEASE.2024-05-28T17-19-04Z
+      restart: unless-stopped
+      environment:
+        MINIO_ROOT_USER: hao123321
+        MINIO_ROOT_PASSWORD: hao123321
+      command: minio server /minio_data --console-address ":9001"
+      # 9001是web管理界面
+      # 9000是对象存储端口
+      ports:
+        - "9000:9000"
+        - "9001:9001"
+      volumes:
+        - milvus-minio:/minio_data
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+        interval: 30s
+        timeout: 20s
+        retries: 3
+
+# Milvus是向量数据库
+    milvus:
+      image: milvusdb/milvus:v3.0.0
+      restart: unless-stopped
+      command: ["milvus", "run", "standalone"]
+      security_opt:
+        - seccomp:unconfined
+      environment:
+        ETCD_ENDPOINTS: etcd:2379
+        MINIO_ADDRESS: minio:9000
+        MINIO_REGION: us-east-1
+        MINIO_ACCESS_KEY_ID: hao123321
+        MINIO_SECRET_ACCESS_KEY: hao123321
+      depends_on:
+        etcd:
+          condition: service_healthy
+        minio:
+          condition: service_healthy
+      # 19530是Milvus的默认端口
+      # 9091是Milvus的web管理界面端口，http://localhost:9091
+      ports:
+        - "19530:19530"
+        - "9091:9091"
+      # 本地运行的数据
+      volumes:
+        - milvus-data:/var/lib/milvus
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+        interval: 90s
+        timeout: 20s
+        retries: 3
+
+  volumes:
+    # MySQL 数据卷
+    mysql-data:
+
+      # 指定 Docker volume 的实际名称
+      #
+      # Docker 中看到的名称：
+      # home-service-mysql-data
+      name: home-service-mysql-data
+
+    # Redis 数据卷
+    redis-data:
+      name: home-service-redis-data
+
+    milvus-etcd:
+      name: home-service-milvus-etcd
+
+    milvus-minio:
+      name: home-service-milvus-minio
+
+    milvus-data:
+      name: home-service-milvus-data
